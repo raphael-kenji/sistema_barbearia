@@ -1,5 +1,10 @@
 <?php
 session_start();
+
+if (isset($_SESSION['usuario_id'])) {
+    header('Location: painel.php');
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -34,7 +39,7 @@ session_start();
                     <?php endif; ?>
 
                     <!-- Formulário de autenticação configurado com method="POST" -->
-                    <form action="processa_login.php" method="POST" autocomplete="on">
+                    <form action="actions/processa_login.php" method="POST" autocomplete="on">
                         
                         <div class="mb-3">
                             <label for="email" class="form-label small fw-semibold">E-mail ou Usuário</label>
