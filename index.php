@@ -37,6 +37,13 @@ if (isset($_SESSION['usuario_id'])) {
                         </div>
                         <?php unset($_SESSION['erro_login']); ?>
                     <?php endif; ?>
+                    <?php if (isset($_SESSION['sucesso_login'])): ?>
+                        <div class="alert alert-success alert-dismissible fade show small py-2" role="alert">
+                            <?= htmlspecialchars($_SESSION['sucesso_login']); ?>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                        </div>
+                        <?php unset($_SESSION['sucesso_login']); ?>
+                    <?php endif; ?>
 
                     <!-- Formulário de autenticação configurado com method="POST" -->
                     <form action="actions/processa_login.php" method="POST" autocomplete="on">
@@ -88,7 +95,7 @@ if (isset($_SESSION['usuario_id'])) {
                     </form>
 
                     <footer class="mt-4 pt-3 border-top border-secondary text-center small text-secondary">
-                        Não tem uma conta? <a href="cadastro_usuario.php" class="text-warning text-decoration-none fw-semibold">Cadastre-se</a>
+                        Não tem uma conta? <a href="pages/cadastro_usuario.php" class="text-warning text-decoration-none fw-semibold">Cadastre-se</a>
                     </footer>
                 </section>
 
