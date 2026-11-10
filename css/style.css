@@ -22,3 +22,41 @@ body{
     color: #fff;
     box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
 }
+
+/* Clareia as dicas (placeholders) dentro dos campos escuros */
+.modal-body .form-control::placeholder {
+    color: #adb5bd !important;
+    opacity: 0.85;
+}
+
+/* Clareia os textos informativos e legendas */
+.card-login p,
+.text-secondary {
+    color: #adb5bd !important;
+}
+
+/* Garante texto branco e nítido ao digitar em qualquer campo */
+.form-control {
+    color: #ffffff !important;
+}
+
+/* Clareia os textos de exemplo (placeholders) em todos os navegadores */
+.form-control::placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.85 !important;
+}
+
+.form-control::-webkit-input-placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.85 !important;
+}
+
+.form-control::-moz-placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.85 !important;
+}
+
+/* Ícones dos campos com cor mais visível */
+.input-group-text i {
+    color: #adb5bd !important;
+}
