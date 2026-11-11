@@ -9,11 +9,57 @@ if (!isset($_SESSION['usuario_id'])) {
     exit;
 }
 
-// Carregamento de dados para o perfil de administrador
-$servicos = [];
-if ($_SESSION['usuario_tipo'] === 'admin') {
+$usuario_id   = $_SESSION['usuario_id'];
+$usuario_tipo = $_SESSION['usuario_tipo'];
+
+// Carrega os dados de acordo com o perfil
+$servicos     = [];
+$barbeiros    = [];
+$agendamentos = [];
+
+if ($usuario_tipo === 'admin') {
+    // Lista de serviços para o CRUD do Admin
     $stmt = $pdo->query('SELECT * FROM servicos ORDER BY id DESC');
     $servicos = $stmt->fetchAll();
+
+    // Visão geral de todos os agendamentos para o Admin
+    $sqlAg = 'SELECT a.*, s.nome AS servico_nome, s.preco, c.nome AS cliente_nome, b.nome AS barbeiro_nome 
+              FROM agendamentos a
+              JOIN servicos s ON a.servico_id = s.id
+              JOIN usuarios c ON a.cliente_id = c.id
+              JOIN usuarios b ON a.barbeiro_id = b.id
+              ORDER BY a.data_agendamento DESC, a.horario ASC';
+    $agendamentos = $pdo->query($sqlAg)->fetchAll();
+
+} elseif ($usuario_tipo === 'barbeiro') {
+    // Agenda de atendimentos exclusiva deste barbeiro
+    $sqlAg = 'SELECT a.*, s.nome AS servico_nome, s.preco, c.nome AS cliente_nome, c.telefone AS cliente_telefone
+              FROM agendamentos a
+              JOIN servicos s ON a.servico_id = s.id
+              JOIN usuarios c ON a.cliente_id = c.id
+              WHERE a.barbeiro_id = :barbeiro_id
+              ORDER BY a.data_agendamento DESC, a.horario ASC';
+    $stmt = $pdo->prepare($sqlAg);
+    $stmt->execute([':barbeiro_id' => $usuario_id]);
+    $agendamentos = $stmt->fetchAll();
+
+} else {
+    // Perfil Cliente: carregar lista dos seus agendamentos
+    $sqlAg = 'SELECT a.*, s.nome AS servico_nome, s.preco, b.nome AS barbeiro_nome 
+              FROM agendamentos a
+              JOIN servicos s ON a.servico_id = s.id
+              JOIN usuarios b ON a.barbeiro_id = b.id
+              WHERE a.cliente_id = :cliente_id
+              ORDER BY a.data_agendamento DESC, a.horario ASC';
+    $stmt = $pdo->prepare($sqlAg);
+    $stmt->execute([':cliente_id' => $usuario_id]);
+    $agendamentos = $stmt->fetchAll();
+
+    // Carrega serviços e barbeiros disponíveis para o formulário de agendamento
+    $servicos = $pdo->query('SELECT id, nome, preco, duracao_minutos FROM servicos ORDER BY nome ASC')->fetchAll();
+    $stmtB = $pdo->prepare('SELECT id, nome FROM usuarios WHERE tipo = "barbeiro" ORDER BY nome ASC');
+    $stmtB->execute();
+    $barbeiros = $stmtB->fetchAll();
 }
 ?>
 <!DOCTYPE html>
@@ -28,7 +74,7 @@ if ($_SESSION['usuario_tipo'] === 'admin') {
 </head>
 <body class="bg-light">
 
-    <!-- Cabeçalho Principal e Navegação Semântica -->
+    <!-- Cabeçalho Principal -->
     <header>
         <nav class="navbar navbar-dark bg-dark px-4 shadow-sm" aria-label="Navegação do Painel">
             <div class="container-fluid px-0">
@@ -51,29 +97,23 @@ if ($_SESSION['usuario_tipo'] === 'admin') {
     <!-- Conteúdo Central -->
     <main class="container my-4">
 
-        <!-- Área de Mensagens de Notificação/Feedback -->
+        <!-- Mensagens de Feedback -->
         <section aria-label="Mensagens do Sistema">
-            <?php if (isset($_SESSION['sucesso_servico'])): ?>
-                <div class="alert alert-success alert-dismissible fade show small py-2" role="alert">
-                    <?= htmlspecialchars($_SESSION['sucesso_servico']); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
-                </div>
-                <?php unset($_SESSION['sucesso_servico']); ?>
-            <?php endif; ?>
-
-            <?php if (isset($_SESSION['erro_servico'])): ?>
-                <div class="alert alert-danger alert-dismissible fade show small py-2" role="alert">
-                    <?= htmlspecialchars($_SESSION['erro_servico']); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
-                </div>
-                <?php unset($_SESSION['erro_servico']); ?>
-            <?php endif; ?>
+            <?php foreach (['sucesso_servico', 'erro_servico', 'sucesso_agendamento', 'erro_agendamento'] as $msgKey): ?>
+                <?php if (isset($_SESSION[$msgKey])): ?>
+                    <div class="alert alert-<?= strpos($msgKey, 'sucesso') !== false ? 'success' : 'danger'; ?> alert-dismissible fade show small py-2" role="alert">
+                        <?= htmlspecialchars($_SESSION[$msgKey]); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                    </div>
+                    <?php unset($_SESSION[$msgKey]); ?>
+                <?php endif; ?>
+            <?php endforeach; ?>
         </section>
 
-        <!-- Seção Exclusiva: Administrador -->
-        <?php if ($_SESSION['usuario_tipo'] === 'admin'): ?>
+        <!-- VISÃO: ADMINISTRADOR -->
+        <?php if ($usuario_tipo === 'admin'): ?>
 
-            <section aria-labelledby="titulo-gestao-servicos">
+            <section class="mb-5" aria-labelledby="titulo-gestao-servicos">
                 <header class="d-flex justify-content-between align-items-center mb-3">
                     <h1 class="h4 mb-0 fw-bold" id="titulo-gestao-servicos">Gerenciamento de Serviços</h1>
                     <button type="button" class="btn btn-warning fw-semibold btn-sm" data-bs-toggle="modal" data-bs-target="#modalNovoServico">
@@ -84,7 +124,7 @@ if ($_SESSION['usuario_tipo'] === 'admin') {
                 <article class="card shadow-sm border-0">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
-                            <caption class="visually-hidden">Tabela com a listagem dos serviços disponíveis na barbearia</caption>
+                            <caption class="visually-hidden">Tabela de serviços cadastrados</caption>
                             <thead class="table-dark">
                                 <tr>
                                     <th scope="col">#</th>
@@ -109,7 +149,6 @@ if ($_SESSION['usuario_tipo'] === 'admin') {
                                             <td>R$ <?= number_format($servico['preco'], 2, ',', '.'); ?></td>
                                             <td><?= htmlspecialchars($servico['duracao_minutos']); ?> min</td>
                                             <td class="text-center">
-                                                <!-- Botão Editar (Update) -->
                                                 <button type="button" 
                                                         class="btn btn-outline-warning btn-sm me-1 btn-editar-servico"
                                                         data-bs-toggle="modal" 
@@ -119,17 +158,13 @@ if ($_SESSION['usuario_tipo'] === 'admin') {
                                                         data-descricao="<?= htmlspecialchars($servico['descricao'] ?? ''); ?>"
                                                         data-preco="<?= $servico['preco']; ?>"
                                                         data-duracao="<?= $servico['duracao_minutos']; ?>"
-                                                        title="Editar serviço"
-                                                        aria-label="Editar serviço <?= htmlspecialchars($servico['nome']); ?>">
+                                                        title="Editar serviço">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
-
-                                                <!-- Botão Excluir (Delete) -->
                                                 <a href="../actions/exclui_servico.php?id=<?= $servico['id']; ?>" 
                                                    class="btn btn-outline-danger btn-sm" 
                                                    onclick="return confirm('Deseja realmente excluir este serviço?');"
-                                                   title="Excluir serviço"
-                                                   aria-label="Excluir serviço <?= htmlspecialchars($servico['nome']); ?>">
+                                                   title="Excluir serviço">
                                                     <i class="bi bi-trash"></i>
                                                 </a>
                                             </td>
@@ -142,18 +177,65 @@ if ($_SESSION['usuario_tipo'] === 'admin') {
                 </article>
             </section>
 
-            <!-- Diálogo Modal: Cadastro de Novo Serviço (Create) -->
+            <!-- Agendamentos Gerais para o Admin -->
+            <section aria-labelledby="titulo-todos-agendamentos">
+                <header class="mb-3">
+                    <h2 class="h4 mb-0 fw-bold" id="titulo-todos-agendamentos">Todos os Agendamentos</h2>
+                </header>
+                <article class="card shadow-sm border-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <caption class="visually-hidden">Tabela geral de agendamentos</caption>
+                            <thead class="table-dark">
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Data / Hora</th>
+                                    <th scope="col">Cliente</th>
+                                    <th scope="col">Barbeiro</th>
+                                    <th scope="col">Serviço</th>
+                                    <th scope="col">Valor</th>
+                                    <th scope="col">Observações</th>
+                                    <th scope="col">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($agendamentos)): ?>
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted py-3">Nenhum agendamento registrado.</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($agendamentos as $ag): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($ag['id']); ?></td>
+                                            <td><?= date('d/m/Y', strtotime($ag['data_agendamento'])); ?> às <?= substr($ag['horario'], 0, 5); ?></td>
+                                            <td class="fw-semibold"><?= htmlspecialchars($ag['cliente_nome']); ?></td>
+                                            <td><?= htmlspecialchars($ag['barbeiro_nome']); ?></td>
+                                            <td><?= htmlspecialchars($ag['servico_nome']); ?></td>
+                                            <td>R$ <?= number_format($ag['preco'], 2, ',', '.'); ?></td>
+                                            <td class="text-muted small"><?= !empty($ag['observacoes']) ? htmlspecialchars($ag['observacoes']) : '<span class="text-secondary">-</span>'; ?></td>
+                                            <td>
+                                                <span class="badge bg-<?= $ag['status'] === 'concluido' ? 'success' : ($ag['status'] === 'cancelado' ? 'danger' : 'warning text-dark'); ?>">
+                                                    <?= ucfirst($ag['status']); ?>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+
+            <!-- Modal: Cadastro de Serviço -->
             <div class="modal fade" id="modalNovoServico" tabindex="-1" aria-labelledby="modalNovoServicoLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content bg-dark text-white border-secondary">
                         <form action="../actions/salva_servico.php" method="POST">
                             <header class="modal-header border-secondary">
-                                <h2 class="modal-title fs-5 fw-bold" id="modalNovoServicoLabel">
-                                    <i class="bi bi-scissors text-warning me-2"></i>Cadastrar Serviço
-                                </h2>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                <h2 class="modal-title fs-5 fw-bold" id="modalNovoServicoLabel">Cadastrar Serviço</h2>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                             </header>
-                            
                             <div class="modal-body">
                                 <div class="mb-3">
                                     <label for="nome" class="form-label small fw-semibold text-light">Nome do Serviço *</label>
@@ -174,7 +256,6 @@ if ($_SESSION['usuario_tipo'] === 'admin') {
                                     </div>
                                 </div>
                             </div>
-                            
                             <footer class="modal-footer border-secondary">
                                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
                                 <button type="submit" class="btn btn-warning btn-sm fw-bold">Salvar Serviço</button>
@@ -184,21 +265,16 @@ if ($_SESSION['usuario_tipo'] === 'admin') {
                 </div>
             </div>
 
-            <!-- Diálogo Modal: Edição de Serviço Existente (Update) -->
+            <!-- Modal: Edição de Serviço -->
             <div class="modal fade" id="modalEditaServico" tabindex="-1" aria-labelledby="modalEditaServicoLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content bg-dark text-white border-secondary">
                         <form action="../actions/atualiza_servico.php" method="POST">
-                            <!-- ID oculto enviado via POST -->
                             <input type="hidden" id="edit_id" name="id">
-
                             <header class="modal-header border-secondary">
-                                <h2 class="modal-title fs-5 fw-bold" id="modalEditaServicoLabel">
-                                    <i class="bi bi-pencil-square text-warning me-2"></i>Editar Serviço
-                                </h2>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                <h2 class="modal-title fs-5 fw-bold" id="modalEditaServicoLabel">Editar Serviço</h2>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                             </header>
-                            
                             <div class="modal-body">
                                 <div class="mb-3">
                                     <label for="edit_nome" class="form-label small fw-semibold text-light">Nome do Serviço *</label>
@@ -219,7 +295,6 @@ if ($_SESSION['usuario_tipo'] === 'admin') {
                                     </div>
                                 </div>
                             </div>
-                            
                             <footer class="modal-footer border-secondary">
                                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
                                 <button type="submit" class="btn btn-warning btn-sm fw-bold">Salvar Alterações</button>
@@ -229,36 +304,221 @@ if ($_SESSION['usuario_tipo'] === 'admin') {
                 </div>
             </div>
 
-        <!-- Seção Exclusiva: Barbeiro -->
-        <?php elseif ($_SESSION['usuario_tipo'] === 'barbeiro'): ?>
+        <!-- VISÃO: BARBEIRO -->
+        <?php elseif ($usuario_tipo === 'barbeiro'): ?>
+
             <section aria-labelledby="titulo-agenda-barbeiro">
-                <article class="card p-4 shadow-sm border-0">
-                    <header class="mb-2">
-                        <h2 class="h5 fw-bold" id="titulo-agenda-barbeiro">
-                            <i class="bi bi-calendar-check text-warning me-2"></i>Agenda de Atendimentos
-                        </h2>
-                    </header>
-                    <p class="text-muted mb-0">A sua lista de atendimentos será exibida aqui.</p>
+                <header class="mb-3">
+                    <h1 class="h4 mb-0 fw-bold" id="titulo-agenda-barbeiro">
+                        <i class="bi bi-calendar-check text-warning me-2"></i>Minha Agenda de Atendimentos
+                    </h1>
+                </header>
+
+                <article class="card shadow-sm border-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <caption class="visually-hidden">Tabela de agendamentos do barbeiro</caption>
+                            <thead class="table-dark">
+                                <tr>
+                                    <th scope="col">Data / Hora</th>
+                                    <th scope="col">Cliente</th>
+                                    <th scope="col">Telefone</th>
+                                    <th scope="col">Serviço</th>
+                                    <th scope="col">Valor</th>
+                                    <th scope="col">Observações</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col" class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($agendamentos)): ?>
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted py-3">Você não possui atendimentos marcados.</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($agendamentos as $ag): ?>
+                                        <tr>
+                                            <td><?= date('d/m/Y', strtotime($ag['data_agendamento'])); ?> às <?= substr($ag['horario'], 0, 5); ?></td>
+                                            <td class="fw-semibold"><?= htmlspecialchars($ag['cliente_nome']); ?></td>
+                                            <td><?= htmlspecialchars($ag['cliente_telefone'] ?? '-'); ?></td>
+                                            <td><?= htmlspecialchars($ag['servico_nome']); ?></td>
+                                            <td>R$ <?= number_format($ag['preco'], 2, ',', '.'); ?></td>
+                                            <td class="text-muted small"><?= !empty($ag['observacoes']) ? htmlspecialchars($ag['observacoes']) : '<span class="text-secondary">-</span>'; ?></td>
+                                            <td>
+                                                <span class="badge bg-<?= $ag['status'] === 'concluido' ? 'success' : ($ag['status'] === 'cancelado' ? 'danger' : 'warning text-dark'); ?>">
+                                                    <?= ucfirst($ag['status']); ?>
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                <?php if ($ag['status'] === 'pendente'): ?>
+                                                    <a href="../actions/cancela_agendamento.php?id=<?= $ag['id']; ?>&status=concluido" 
+                                                       class="btn btn-outline-success btn-sm me-1" 
+                                                       title="Marcar como concluído"
+                                                       onclick="return confirm('Confirmar atendimento como concluído?');">
+                                                        <i class="bi bi-check-lg"></i>
+                                                    </a>
+                                                    <a href="../actions/cancela_agendamento.php?id=<?= $ag['id']; ?>&status=cancelado" 
+                                                       class="btn btn-outline-danger btn-sm" 
+                                                       title="Cancelar atendimento"
+                                                       onclick="return confirm('Deseja realmente cancelar este atendimento?');">
+                                                        <i class="bi bi-x-lg"></i>
+                                                    </a>
+                                                <?php else: ?>
+                                                    <span class="text-muted small">-</span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </article>
             </section>
 
-        <!-- Seção Exclusiva: Cliente -->
+        <!-- VISÃO: CLIENTE -->
         <?php else: ?>
+
             <section aria-labelledby="titulo-meus-agendamentos">
-                <article class="card p-4 shadow-sm border-0">
-                    <header class="mb-2">
-                        <h2 class="h5 fw-bold" id="titulo-meus-agendamentos">
-                            <i class="bi bi-clock-history text-warning me-2"></i>Meus Agendamentos
-                        </h2>
-                    </header>
-                    <p class="text-muted mb-0">Aqui você poderá solicitar e acompanhar seus horários de corte e barba.</p>
+                <header class="d-flex justify-content-between align-items-center mb-3">
+                    <h1 class="h4 mb-0 fw-bold" id="titulo-meus-agendamentos">
+                        <i class="bi bi-clock-history text-warning me-2"></i>Meus Agendamentos
+                    </h1>
+                    <button type="button" class="btn btn-warning fw-semibold btn-sm" data-bs-toggle="modal" data-bs-target="#modalNovoAgendamento">
+                        <i class="bi bi-calendar-plus me-1"></i> Agendar Horário
+                    </button>
+                </header>
+
+                <article class="card shadow-sm border-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <caption class="visually-hidden">Tabela de agendamentos do cliente</caption>
+                            <thead class="table-dark">
+                                <tr>
+                                    <th scope="col">Data / Hora</th>
+                                    <th scope="col">Serviço</th>
+                                    <th scope="col">Valor</th>
+                                    <th scope="col">Barbeiro</th>
+                                    <th scope="col">Observações</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col" class="text-center">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($agendamentos)): ?>
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-3">Você ainda não tem agendamentos marcados.</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($agendamentos as $ag): ?>
+                                        <tr>
+                                            <td><?= date('d/m/Y', strtotime($ag['data_agendamento'])); ?> às <?= substr($ag['horario'], 0, 5); ?></td>
+                                            <td class="fw-semibold"><?= htmlspecialchars($ag['servico_nome']); ?></td>
+                                            <td>R$ <?= number_format($ag['preco'], 2, ',', '.'); ?></td>
+                                            <td><?= htmlspecialchars($ag['barbeiro_nome']); ?></td>
+                                            <td class="text-muted small"><?= !empty($ag['observacoes']) ? htmlspecialchars($ag['observacoes']) : '<span class="text-secondary">-</span>'; ?></td>
+                                            <td>
+                                                <span class="badge bg-<?= $ag['status'] === 'concluido' ? 'success' : ($ag['status'] === 'cancelado' ? 'danger' : 'warning text-dark'); ?>">
+                                                    <?= ucfirst($ag['status']); ?>
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                <?php if ($ag['status'] === 'pendente'): ?>
+                                                    <a href="../actions/cancela_agendamento.php?id=<?= $ag['id']; ?>&status=cancelado" 
+                                                       class="btn btn-outline-danger btn-sm"
+                                                       onclick="return confirm('Deseja realmente cancelar seu agendamento?');"
+                                                       title="Cancelar">
+                                                        <i class="bi bi-x-circle"></i> Cancelar
+                                                    </a>
+                                                <?php else: ?>
+                                                    <span class="text-muted small">-</span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </article>
             </section>
+
+            <!-- Modal: Novo Agendamento (Cliente) -->
+            <div class="modal fade" id="modalNovoAgendamento" tabindex="-1" aria-labelledby="modalNovoAgendamentoLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content bg-dark text-white border-secondary">
+                        <form action="../actions/salva_agendamento.php" method="POST">
+                            <header class="modal-header border-secondary">
+                                <h2 class="modal-title fs-5 fw-bold" id="modalNovoAgendamentoLabel">
+                                    <i class="bi bi-calendar-plus text-warning me-2"></i>Agendar Horário
+                                </h2>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </header>
+                            <div class="modal-body">
+                                
+                                <div class="mb-3">
+                                    <label for="servico_id" class="form-label small fw-semibold text-light">Serviço *</label>
+                                    <select class="form-select bg-dark text-white border-secondary" id="servico_id" name="servico_id" required>
+                                        <option value="" disabled selected>Selecione um serviço</option>
+                                        <?php foreach ($servicos as $srv): ?>
+                                            <option value="<?= $srv['id']; ?>">
+                                                <?= htmlspecialchars($srv['nome']); ?> - R$ <?= number_format($srv['preco'], 2, ',', '.'); ?> (<?= $srv['duracao_minutos']; ?> min)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="barbeiro_id" class="form-label small fw-semibold text-light">Barbeiro *</label>
+                                    <select class="form-select bg-dark text-white border-secondary" id="barbeiro_id" name="barbeiro_id" required>
+                                        <option value="" disabled selected>Selecione o barbeiro</option>
+                                        <?php foreach ($barbeiros as $brb): ?>
+                                            <option value="<?= $brb['id']; ?>"><?= htmlspecialchars($brb['nome']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-6 mb-3">
+                                        <label for="data_agendamento" class="form-label small fw-semibold text-light">Data *</label>
+                                        <input type="date" class="form-control bg-dark text-white border-secondary" id="data_agendamento" name="data_agendamento" min="<?= date('Y-m-d'); ?>" required>
+                                    </div>
+                                    <div class="col-6 mb-3">
+                                        <label for="horario" class="form-label small fw-semibold text-light">Horário *</label>
+                                        <select class="form-select bg-dark text-white border-secondary" id="horario" name="horario" required>
+                                            <option value="" disabled selected>Horário</option>
+                                            <option value="09:00:00">09:00</option>
+                                            <option value="10:00:00">10:00</option>
+                                            <option value="11:00:00">11:00</option>
+                                            <option value="13:00:00">13:00</option>
+                                            <option value="14:00:00">14:00</option>
+                                            <option value="15:00:00">15:00</option>
+                                            <option value="16:00:00">16:00</option>
+                                            <option value="17:00:00">17:00</option>
+                                            <option value="18:00:00">18:00</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="observacoes" class="form-label small fw-semibold text-light">Observações</label>
+                                    <textarea class="form-control bg-dark text-white border-secondary" id="observacoes" name="observacoes" rows="2" placeholder="Alguma preferência especial?"></textarea>
+                                </div>
+
+                            </div>
+                            <footer class="modal-footer border-secondary">
+                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+                                <button type="submit" class="btn btn-warning btn-sm fw-bold">Confirmar Agendamento</button>
+                            </footer>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
         <?php endif; ?>
 
     </main>
 
-    <!-- Scripts Bootstrap e Preenchimento Automático do Modal de Edição -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.querySelectorAll('.btn-editar-servico').forEach(button => {
