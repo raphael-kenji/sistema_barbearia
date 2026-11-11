@@ -70,7 +70,7 @@ if (isset($_SESSION['usuario_id'])) {
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <label for="senha" class="form-label small fw-semibold mb-0">Senha</label>
                                 <!-- Link para a tela de recuperação de senha exigida no trabalho -->
-                                <a href="recuperar_senha.php" class="text-warning text-decoration-none small">Esqueceu a senha?</a>
+                                <a href="pages/recuperar_senha.php" class="text-warning text-decoration-none small">Esqueceu a senha?</a>
                             </div>
                             <div class="input-group">
                                 <span class="input-group-text bg-dark border-secondary text-secondary">
