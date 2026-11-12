@@ -22,6 +22,10 @@ if ($usuario_tipo === 'admin') {
     $stmt = $pdo->query('SELECT * FROM servicos ORDER BY id DESC');
     $servicos = $stmt->fetchAll();
 
+    // Lista de barbeiros cadastrados
+    $stmtB = $pdo->query('SELECT id, nome, email, telefone FROM usuarios WHERE tipo = "barbeiro" ORDER BY id DESC');
+    $barbeiros = $stmtB->fetchAll();
+
     // Visão geral de todos os agendamentos para o Admin
     $sqlAg = 'SELECT a.*, s.nome AS servico_nome, s.preco, c.nome AS cliente_nome, b.nome AS barbeiro_nome 
               FROM agendamentos a
@@ -99,7 +103,7 @@ if ($usuario_tipo === 'admin') {
 
         <!-- Mensagens de Feedback -->
         <section aria-label="Mensagens do Sistema">
-            <?php foreach (['sucesso_servico', 'erro_servico', 'sucesso_agendamento', 'erro_agendamento'] as $msgKey): ?>
+            <?php foreach (['sucesso_servico', 'erro_servico', 'sucesso_agendamento', 'erro_agendamento', 'sucesso_barbeiro', 'erro_barbeiro'] as $msgKey): ?>
                 <?php if (isset($_SESSION[$msgKey])): ?>
                     <div class="alert alert-<?= strpos($msgKey, 'sucesso') !== false ? 'success' : 'danger'; ?> alert-dismissible fade show small py-2" role="alert">
                         <?= htmlspecialchars($_SESSION[$msgKey]); ?>
@@ -113,6 +117,7 @@ if ($usuario_tipo === 'admin') {
         <!-- VISÃO: ADMINISTRADOR -->
         <?php if ($usuario_tipo === 'admin'): ?>
 
+            <!-- 1. Gestão de Serviços -->
             <section class="mb-5" aria-labelledby="titulo-gestao-servicos">
                 <header class="d-flex justify-content-between align-items-center mb-3">
                     <h1 class="h4 mb-0 fw-bold" id="titulo-gestao-servicos">Gerenciamento de Serviços</h1>
@@ -177,7 +182,49 @@ if ($usuario_tipo === 'admin') {
                 </article>
             </section>
 
-            <!-- Agendamentos Gerais para o Admin -->
+            <!-- 2. Gestão da Equipa (Barbeiros) -->
+            <section class="mb-5" aria-labelledby="titulo-gestao-barbeiros">
+                <header class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h4 mb-0 fw-bold" id="titulo-gestao-barbeiros">Equipa de Barbeiros</h2>
+                    <button type="button" class="btn btn-warning fw-semibold btn-sm" data-bs-toggle="modal" data-bs-target="#modalNovoBarbeiro">
+                        <i class="bi bi-person-plus me-1"></i> Novo Barbeiro
+                    </button>
+                </header>
+
+                <article class="card shadow-sm border-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <caption class="visually-hidden">Tabela de barbeiros cadastrados</caption>
+                            <thead class="table-dark">
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Nome</th>
+                                    <th scope="col">E-mail</th>
+                                    <th scope="col">Telefone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($barbeiros)): ?>
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-3">Nenhum barbeiro cadastrado.</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($barbeiros as $barbeiro): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($barbeiro['id']); ?></td>
+                                            <td class="fw-semibold"><?= htmlspecialchars($barbeiro['nome']); ?></td>
+                                            <td><?= htmlspecialchars($barbeiro['email']); ?></td>
+                                            <td><?= htmlspecialchars($barbeiro['telefone'] ?? '-'); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+
+            <!-- 3. Agendamentos Gerais para o Admin -->
             <section aria-labelledby="titulo-todos-agendamentos">
                 <header class="mb-3">
                     <h2 class="h4 mb-0 fw-bold" id="titulo-todos-agendamentos">Todos os Agendamentos</h2>
@@ -226,6 +273,44 @@ if ($usuario_tipo === 'admin') {
                     </div>
                 </article>
             </section>
+
+            <!-- Modal: Cadastro de Novo Barbeiro -->
+            <div class="modal fade" id="modalNovoBarbeiro" tabindex="-1" aria-labelledby="modalNovoBarbeiroLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content bg-dark text-white border-secondary">
+                        <form action="../actions/salva_barbeiro.php" method="POST">
+                            <header class="modal-header border-secondary">
+                                <h2 class="modal-title fs-5 fw-bold" id="modalNovoBarbeiroLabel">
+                                    <i class="bi bi-person-plus text-warning me-2"></i>Cadastrar Barbeiro
+                                </h2>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </header>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="barb_nome" class="form-label small fw-semibold text-light">Nome Completo *</label>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" id="barb_nome" name="nome" placeholder="Ex: João Silva" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="barb_email" class="form-label small fw-semibold text-light">E-mail de Acesso *</label>
+                                    <input type="email" class="form-control bg-dark text-white border-secondary" id="barb_email" name="email" placeholder="joao@barbearia.com" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="barb_telefone" class="form-label small fw-semibold text-light">Telefone / WhatsApp</label>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" id="barb_telefone" name="telefone" placeholder="18999990000">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="barb_senha" class="form-label small fw-semibold text-light">Senha Provisória *</label>
+                                    <input type="password" class="form-control bg-dark text-white border-secondary" id="barb_senha" name="senha" placeholder="Mínimo 6 caracteres" required>
+                                </div>
+                            </div>
+                            <footer class="modal-footer border-secondary">
+                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-warning btn-sm fw-bold">Cadastrar Barbeiro</button>
+                            </footer>
+                        </form>
+                    </div>
+                </div>
+            </div>
 
             <!-- Modal: Cadastro de Serviço -->
             <div class="modal fade" id="modalNovoServico" tabindex="-1" aria-labelledby="modalNovoServicoLabel" aria-hidden="true">
