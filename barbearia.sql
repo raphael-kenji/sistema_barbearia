@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.3
+-- version 5.2.0
 -- https://www.phpmyadmin.net/
 --
--- Host: localhost
--- Tempo de geração: 12-Nov-2026 às 11:16
--- Versão do servidor: 8.4.3
--- versão do PHP: 8.3.33
+-- Host: 127.0.0.1
+-- Tempo de geração: 12-Nov-2026 às 14:49
+-- Versão do servidor: 10.4.27-MariaDB
+-- versão do PHP: 8.2.0
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Base de dados: `barbearia`
+-- Banco de dados: `barbearia`
 --
 
 -- --------------------------------------------------------
@@ -28,15 +28,15 @@ SET time_zone = "+00:00";
 --
 
 CREATE TABLE `agendamentos` (
-  `id` int NOT NULL,
-  `cliente_id` int NOT NULL,
-  `barbeiro_id` int NOT NULL,
-  `servico_id` int NOT NULL,
+  `id` int(11) NOT NULL,
+  `cliente_id` int(11) NOT NULL,
+  `barbeiro_id` int(11) NOT NULL,
+  `servico_id` int(11) NOT NULL,
   `data_agendamento` date NOT NULL,
   `horario` time NOT NULL,
-  `status` enum('pendente','concluido','cancelado') COLLATE utf8mb4_unicode_ci DEFAULT 'pendente',
-  `observacoes` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `criado_em` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+  `status` enum('pendente','concluido','cancelado') DEFAULT 'pendente',
+  `observacoes` varchar(255) DEFAULT NULL,
+  `criado_em` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -53,12 +53,12 @@ INSERT INTO `agendamentos` (`id`, `cliente_id`, `barbeiro_id`, `servico_id`, `da
 --
 
 CREATE TABLE `servicos` (
-  `id` int NOT NULL,
-  `nome` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `descricao` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `id` int(11) NOT NULL,
+  `nome` varchar(100) NOT NULL,
+  `descricao` varchar(255) DEFAULT NULL,
   `preco` decimal(10,2) NOT NULL,
-  `duracao_minutos` int NOT NULL DEFAULT '30',
-  `criado_em` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+  `duracao_minutos` int(11) NOT NULL DEFAULT 30,
+  `criado_em` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -66,9 +66,9 @@ CREATE TABLE `servicos` (
 --
 
 INSERT INTO `servicos` (`id`, `nome`, `descricao`, `preco`, `duracao_minutos`, `criado_em`) VALUES
-(1, 'Corte Tradicional', 'Corte clássico na tesoura e máquina com lavagem', 35.00, 30, '2026-11-10 20:24:08'),
-(2, 'Barba Completa', 'Toalha quente, navalha e óleo hidratante', 25.00, 30, '2026-11-10 20:24:08'),
-(3, 'Combo Cabelo + Barba', 'Serviço completo com alinhamento e finalização', 55.00, 60, '2026-11-10 20:24:08');
+(1, 'Corte Tradicional', 'Corte clássico na tesoura e máquina com lavagem', '35.00', 30, '2026-11-10 20:24:08'),
+(2, 'Barba Completa', 'Toalha quente, navalha e óleo hidratante', '25.00', 30, '2026-11-10 20:24:08'),
+(3, 'Combo Cabelo + Barba', 'Serviço completo com alinhamento e finalização', '55.00', 60, '2026-11-10 20:24:08');
 
 -- --------------------------------------------------------
 
@@ -77,13 +77,13 @@ INSERT INTO `servicos` (`id`, `nome`, `descricao`, `preco`, `duracao_minutos`, `
 --
 
 CREATE TABLE `usuarios` (
-  `id` int NOT NULL,
-  `nome` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `telefone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `senha` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `tipo` enum('cliente','barbeiro','admin') COLLATE utf8mb4_unicode_ci DEFAULT 'cliente',
-  `criado_em` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+  `id` int(11) NOT NULL,
+  `nome` varchar(100) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `telefone` varchar(20) DEFAULT NULL,
+  `senha` varchar(255) NOT NULL,
+  `tipo` enum('cliente','barbeiro','admin') DEFAULT 'cliente',
+  `criado_em` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -94,8 +94,7 @@ INSERT INTO `usuarios` (`id`, `nome`, `email`, `telefone`, `senha`, `tipo`, `cri
 (1, 'Administrador', 'admin@barbearia.com', '18999999999', '$2y$10$aeF02lY1.Xs2mYKzg4y5E.OuGZ8PuAuK.eUFGOF5yt6Vr0Ru3dxIm', 'admin', '2026-11-09 19:55:05'),
 (2, 'Cliente Teste', 'teste@barbearia.com', '18999998888', '$2y$10$//0Q9PkXJgUDPc9yrPQdDOSyoro.Z5rcR/Ije5B.qIcaMWVD.6EwC', 'cliente', '2026-11-10 17:14:21'),
 (3, 'ronaldo', 'ronaldo@gmail.com', '18999998888', '$2y$10$XqL14txNK3v.DtQ6aRKBnub4wnbIOSirjwwAU/59NIx8dK/NzPJfK', 'cliente', '2026-11-11 21:54:14'),
-(4, 'Carlos Barbeiro', 'carlos@barbearia.com', '18999990001', '$2y$10$k4TWQatvdUf9acSJdca3LOIDWFKnYNAETC.IutW47aY1a94kLVVqi', 'barbeiro', '2026-11-11 22:01:13'),
-(5, 'Jorge', 'jorge@barbearia.com', '18999998888', '$2y$10$wOHog3vL8oomOTHjq216v.LTeIEQeYJIH2zutjkaacHJPv1ptGBJq', 'barbeiro', '2026-11-12 11:13:50');
+(4, 'Carlos Barbeiro', 'carlos@barbearia.com', '18999990001', '$2y$10$k4TWQatvdUf9acSJdca3LOIDWFKnYNAETC.IutW47aY1a94kLVVqi', 'barbeiro', '2026-11-11 22:01:13');
 
 --
 -- Índices para tabelas despejadas
@@ -131,19 +130,19 @@ ALTER TABLE `usuarios`
 -- AUTO_INCREMENT de tabela `agendamentos`
 --
 ALTER TABLE `agendamentos`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT de tabela `servicos`
 --
 ALTER TABLE `servicos`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de tabela `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- Restrições para despejos de tabelas
