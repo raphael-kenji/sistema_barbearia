@@ -201,12 +201,13 @@ if ($usuario_tipo === 'admin') {
                                     <th scope="col">Nome</th>
                                     <th scope="col">E-mail</th>
                                     <th scope="col">Telefone</th>
+                                    <th scope="col" class="text-center">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if (empty($barbeiros)): ?>
                                     <tr>
-                                        <td colspan="4" class="text-center text-muted py-3">Nenhum barbeiro cadastrado.</td>
+                                        <td colspan="5" class="text-center text-muted py-3">Nenhum barbeiro cadastrado.</td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($barbeiros as $barbeiro): ?>
@@ -215,6 +216,25 @@ if ($usuario_tipo === 'admin') {
                                             <td class="fw-semibold"><?= htmlspecialchars($barbeiro['nome']); ?></td>
                                             <td><?= htmlspecialchars($barbeiro['email']); ?></td>
                                             <td><?= htmlspecialchars($barbeiro['telefone'] ?? '-'); ?></td>
+                                            <td class="text-center">
+                                                <button type="button" 
+                                                        class="btn btn-outline-warning btn-sm me-1 btn-editar-barbeiro"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalEditaBarbeiro"
+                                                        data-id="<?= $barbeiro['id']; ?>"
+                                                        data-nome="<?= htmlspecialchars($barbeiro['nome']); ?>"
+                                                        data-email="<?= htmlspecialchars($barbeiro['email']); ?>"
+                                                        data-telefone="<?= htmlspecialchars($barbeiro['telefone'] ?? ''); ?>"
+                                                        title="Editar barbeiro">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <a href="../actions/exclui_barbeiro.php?id=<?= $barbeiro['id']; ?>" 
+                                                   class="btn btn-outline-danger btn-sm" 
+                                                   onclick="return confirm('Deseja realmente excluir este barbeiro?');"
+                                                   title="Excluir barbeiro">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
@@ -306,6 +326,45 @@ if ($usuario_tipo === 'admin') {
                             <footer class="modal-footer border-secondary">
                                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
                                 <button type="submit" class="btn btn-warning btn-sm fw-bold">Cadastrar Barbeiro</button>
+                            </footer>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Edição de Barbeiro -->
+            <div class="modal fade" id="modalEditaBarbeiro" tabindex="-1" aria-labelledby="modalEditaBarbeiroLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content bg-dark text-white border-secondary">
+                        <form action="../actions/atualiza_barbeiro.php" method="POST">
+                            <input type="hidden" id="edit_barb_id" name="id">
+                            <header class="modal-header border-secondary">
+                                <h2 class="modal-title fs-5 fw-bold" id="modalEditaBarbeiroLabel">
+                                    <i class="bi bi-person-gear text-warning me-2"></i>Editar Barbeiro
+                                </h2>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </header>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="edit_barb_nome" class="form-label small fw-semibold text-light">Nome Completo *</label>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" id="edit_barb_nome" name="nome" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_barb_email" class="form-label small fw-semibold text-light">E-mail de Acesso *</label>
+                                    <input type="email" class="form-control bg-dark text-white border-secondary" id="edit_barb_email" name="email" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_barb_telefone" class="form-label small fw-semibold text-light">Telefone / WhatsApp</label>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" id="edit_barb_telefone" name="telefone">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_barb_senha" class="form-label small fw-semibold text-light">Nova Senha <span class="text-secondary fw-normal">(deixe em branco para manter a atual)</span></label>
+                                    <input type="password" class="form-control bg-dark text-white border-secondary" id="edit_barb_senha" name="senha" placeholder="Mínimo 6 caracteres">
+                                </div>
+                            </div>
+                            <footer class="modal-footer border-secondary">
+                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-warning btn-sm fw-bold">Salvar Alterações</button>
                             </footer>
                         </form>
                     </div>
@@ -605,16 +664,6 @@ if ($usuario_tipo === 'admin') {
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.querySelectorAll('.btn-editar-servico').forEach(button => {
-            button.addEventListener('click', function () {
-                document.getElementById('edit_id').value = this.dataset.id;
-                document.getElementById('edit_nome').value = this.dataset.nome;
-                document.getElementById('edit_descricao').value = this.dataset.descricao;
-                document.getElementById('edit_preco').value = this.dataset.preco;
-                document.getElementById('edit_duracao').value = this.dataset.duracao;
-            });
-        });
-    </script>
+    <script src="../js/painel.js"></script>
 </body>
 </html>
