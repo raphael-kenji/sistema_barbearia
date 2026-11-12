@@ -51,6 +51,17 @@ try {
             $_SESSION['usuario_nome'] = $usuario['nome'];
             $_SESSION['usuario_tipo'] = $usuario['tipo'];
 
+            // Tratamento dos Cookies ("Lembrar e-mail e senha")
+            if (isset($_POST['lembrar'])) {
+                $validade = time() + (7 * 24 * 60 * 60); // 7 dias
+                setcookie('cookie_email', $email, $validade, '/');
+                setcookie('cookie_senha', $senha, $validade, '/');
+            } else {
+                // Remove os cookies se a opção estiver desmarcada
+                setcookie('cookie_email', '', time() - 3600, '/');
+                setcookie('cookie_senha', '', time() - 3600, '/');
+            }
+
             // Redireciona para o painel dentro da pasta pages/
             header('Location: ../pages/painel.php');
             exit;
