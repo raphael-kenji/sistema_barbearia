@@ -15,18 +15,23 @@ $usuario_tipo = $_SESSION['usuario_tipo'];
 // Carrega os dados de acordo com o perfil
 $servicos     = [];
 $barbeiros    = [];
+$clientes     = [];
 $agendamentos = [];
 
 if ($usuario_tipo === 'admin') {
-    // Lista de serviços para o CRUD do Admin
+    // 1. Lista de serviços para o CRUD do Admin
     $stmt = $pdo->query('SELECT * FROM servicos ORDER BY id DESC');
     $servicos = $stmt->fetchAll();
 
-    // Lista de barbeiros cadastrados
+    // 2. Lista de barbeiros cadastrados
     $stmtB = $pdo->query('SELECT id, nome, email, telefone FROM usuarios WHERE tipo = "barbeiro" ORDER BY id DESC');
     $barbeiros = $stmtB->fetchAll();
 
-    // Visão geral de todos os agendamentos para o Admin
+    // 3. Lista de clientes cadastrados
+    $stmtC = $pdo->query('SELECT id, nome, email, telefone FROM usuarios WHERE tipo = "cliente" ORDER BY id DESC');
+    $clientes = $stmtC->fetchAll();
+
+    // 4. Visão geral de todos os agendamentos para o Admin
     $sqlAg = 'SELECT a.*, s.nome AS servico_nome, s.preco, c.nome AS cliente_nome, b.nome AS barbeiro_nome 
               FROM agendamentos a
               JOIN servicos s ON a.servico_id = s.id
@@ -103,7 +108,15 @@ if ($usuario_tipo === 'admin') {
 
         <!-- Mensagens de Feedback -->
         <section aria-label="Mensagens do Sistema">
-            <?php foreach (['sucesso_servico', 'erro_servico', 'sucesso_agendamento', 'erro_agendamento', 'sucesso_barbeiro', 'erro_barbeiro'] as $msgKey): ?>
+            <?php
+            $mensagens = [
+                'sucesso_servico', 'erro_servico',
+                'sucesso_barbeiro', 'erro_barbeiro',
+                'sucesso_cliente', 'erro_cliente',
+                'sucesso_agendamento', 'erro_agendamento'
+            ];
+            foreach ($mensagens as $msgKey):
+            ?>
                 <?php if (isset($_SESSION[$msgKey])): ?>
                     <div class="alert alert-<?= strpos($msgKey, 'sucesso') !== false ? 'success' : 'danger'; ?> alert-dismissible fade show small py-2" role="alert">
                         <?= htmlspecialchars($_SESSION[$msgKey]); ?>
@@ -114,7 +127,7 @@ if ($usuario_tipo === 'admin') {
             <?php endforeach; ?>
         </section>
 
-        <!-- VISÃO: ADMINISTRADOR -->
+        <!-- VISÃO: ADMINISTRADOR (4 CRUDs Completos) -->
         <?php if ($usuario_tipo === 'admin'): ?>
 
             <!-- 1. Gestão de Serviços -->
@@ -185,7 +198,7 @@ if ($usuario_tipo === 'admin') {
             <!-- 2. Gestão da Equipa (Barbeiros) -->
             <section class="mb-5" aria-labelledby="titulo-gestao-barbeiros">
                 <header class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="h4 mb-0 fw-bold" id="titulo-gestao-barbeiros">Equipa de Barbeiros</h2>
+                    <h2 class="h4 mb-0 fw-bold" id="titulo-gestao-barbeiros">Equipe de Barbeiros</h2>
                     <button type="button" class="btn btn-warning fw-semibold btn-sm" data-bs-toggle="modal" data-bs-target="#modalNovoBarbeiro">
                         <i class="bi bi-person-plus me-1"></i> Novo Barbeiro
                     </button>
@@ -244,7 +257,69 @@ if ($usuario_tipo === 'admin') {
                 </article>
             </section>
 
-            <!-- 3. Agendamentos Gerais para o Admin -->
+            <!-- 3. Gestão de Clientes -->
+            <section class="mb-5" aria-labelledby="titulo-gestao-clientes">
+                <header class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h4 mb-0 fw-bold" id="titulo-gestao-clientes">Gerenciamento de Clientes</h2>
+                    <button type="button" class="btn btn-warning fw-semibold btn-sm" data-bs-toggle="modal" data-bs-target="#modalNovoCliente">
+                        <i class="bi bi-person-plus me-1"></i> Novo Cliente
+                    </button>
+                </header>
+
+                <article class="card shadow-sm border-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <caption class="visually-hidden">Tabela de clientes cadastrados</caption>
+                            <thead class="table-dark">
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Nome</th>
+                                    <th scope="col">E-mail</th>
+                                    <th scope="col">Telefone</th>
+                                    <th scope="col" class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($clientes)): ?>
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-3">Nenhum cliente cadastrado.</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($clientes as $cliente): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($cliente['id']); ?></td>
+                                            <td class="fw-semibold"><?= htmlspecialchars($cliente['nome']); ?></td>
+                                            <td><?= htmlspecialchars($cliente['email']); ?></td>
+                                            <td><?= htmlspecialchars($cliente['telefone'] ?? '-'); ?></td>
+                                            <td class="text-center">
+                                                <button type="button" 
+                                                        class="btn btn-outline-warning btn-sm me-1 btn-editar-cliente"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalEditaCliente"
+                                                        data-id="<?= $cliente['id']; ?>"
+                                                        data-nome="<?= htmlspecialchars($cliente['nome']); ?>"
+                                                        data-email="<?= htmlspecialchars($cliente['email']); ?>"
+                                                        data-telefone="<?= htmlspecialchars($cliente['telefone'] ?? ''); ?>"
+                                                        title="Editar cliente">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <a href="../actions/exclui_cliente.php?id=<?= $cliente['id']; ?>" 
+                                                   class="btn btn-outline-danger btn-sm" 
+                                                   onclick="return confirm('Deseja realmente excluir este cliente?');"
+                                                   title="Excluir cliente">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+
+            <!-- 4. Agendamentos Gerais para o Admin -->
             <section aria-labelledby="titulo-todos-agendamentos">
                 <header class="mb-3">
                     <h2 class="h4 mb-0 fw-bold" id="titulo-todos-agendamentos">Todos os Agendamentos</h2>
@@ -263,12 +338,13 @@ if ($usuario_tipo === 'admin') {
                                     <th scope="col">Valor</th>
                                     <th scope="col">Observações</th>
                                     <th scope="col">Status</th>
+                                    <th scope="col" class="text-center">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if (empty($agendamentos)): ?>
                                     <tr>
-                                        <td colspan="8" class="text-center text-muted py-3">Nenhum agendamento registrado.</td>
+                                        <td colspan="9" class="text-center text-muted py-3">Nenhum agendamento registrado.</td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($agendamentos as $ag): ?>
@@ -284,6 +360,28 @@ if ($usuario_tipo === 'admin') {
                                                 <span class="badge bg-<?= $ag['status'] === 'concluido' ? 'success' : ($ag['status'] === 'cancelado' ? 'danger' : 'warning text-dark'); ?>">
                                                     <?= ucfirst($ag['status']); ?>
                                                 </span>
+                                            </td>
+                                            <td class="text-center">
+                                                <button type="button" 
+                                                        class="btn btn-outline-warning btn-sm me-1 btn-editar-agendamento"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalEditaAgendamento"
+                                                        data-id="<?= $ag['id']; ?>"
+                                                        data-servico="<?= $ag['servico_id']; ?>"
+                                                        data-barbeiro="<?= $ag['barbeiro_id']; ?>"
+                                                        data-data="<?= $ag['data_agendamento']; ?>"
+                                                        data-horario="<?= $ag['horario']; ?>"
+                                                        data-status="<?= $ag['status']; ?>"
+                                                        data-observacoes="<?= htmlspecialchars($ag['observacoes'] ?? ''); ?>"
+                                                        title="Editar agendamento">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <a href="../actions/exclui_agendamento.php?id=<?= $ag['id']; ?>" 
+                                                   class="btn btn-outline-danger btn-sm" 
+                                                   onclick="return confirm('Deseja realmente excluir este registro de agendamento?');"
+                                                   title="Excluir agendamento">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -371,6 +469,83 @@ if ($usuario_tipo === 'admin') {
                 </div>
             </div>
 
+            <!-- Modal: Edição de Cliente -->
+            <div class="modal fade" id="modalEditaCliente" tabindex="-1" aria-labelledby="modalEditaClienteLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content bg-dark text-white border-secondary">
+                        <form action="../actions/atualiza_cliente.php" method="POST">
+                            <input type="hidden" id="edit_cli_id" name="id">
+                            <header class="modal-header border-secondary">
+                                <h2 class="modal-title fs-5 fw-bold" id="modalEditaClienteLabel">
+                                    <i class="bi bi-person-gear text-warning me-2"></i>Editar Cliente
+                                </h2>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </header>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="edit_cli_nome" class="form-label small fw-semibold text-light">Nome Completo *</label>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" id="edit_cli_nome" name="nome" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_cli_email" class="form-label small fw-semibold text-light">E-mail de Acesso *</label>
+                                    <input type="email" class="form-control bg-dark text-white border-secondary" id="edit_cli_email" name="email" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_cli_telefone" class="form-label small fw-semibold text-light">Telefone / WhatsApp</label>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" id="edit_cli_telefone" name="telefone">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_cli_senha" class="form-label small fw-semibold text-light">Nova Senha <span class="text-secondary fw-normal">(deixe em branco para manter a atual)</span></label>
+                                    <input type="password" class="form-control bg-dark text-white border-secondary" id="edit_cli_senha" name="senha" placeholder="Mínimo 6 caracteres">
+                                </div>
+                            </div>
+                            <footer class="modal-footer border-secondary">
+                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-warning btn-sm fw-bold">Salvar Alterações</button>
+                            </footer>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Cadastro de Novo Cliente -->
+            <div class="modal fade" id="modalNovoCliente" tabindex="-1" aria-labelledby="modalNovoClienteLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content bg-dark text-white border-secondary">
+                        <form action="../actions/salva_cliente.php" method="POST">
+                            <header class="modal-header border-secondary">
+                                <h2 class="modal-title fs-5 fw-bold" id="modalNovoClienteLabel">
+                                    <i class="bi bi-person-plus text-warning me-2"></i>Cadastrar Cliente
+                                </h2>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </header>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="cli_nome" class="form-label small fw-semibold text-light">Nome Completo *</label>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" id="cli_nome" name="nome" placeholder="Ex: Carlos Souza" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="cli_email" class="form-label small fw-semibold text-light">E-mail de Acesso *</label>
+                                    <input type="email" class="form-control bg-dark text-white border-secondary" id="cli_email" name="email" placeholder="carlos@email.com" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="cli_telefone" class="form-label small fw-semibold text-light">Telefone / WhatsApp</label>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" id="cli_telefone" name="telefone" placeholder="18999990000">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="cli_senha" class="form-label small fw-semibold text-light">Senha Provisória *</label>
+                                    <input type="password" class="form-control bg-dark text-white border-secondary" id="cli_senha" name="senha" placeholder="Mínimo 6 caracteres" required>
+                                </div>
+                            </div>
+                            <footer class="modal-footer border-secondary">
+                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-warning btn-sm fw-bold">Cadastrar Cliente</button>
+                            </footer>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <!-- Modal: Cadastro de Serviço -->
             <div class="modal fade" id="modalNovoServico" tabindex="-1" aria-labelledby="modalNovoServicoLabel" aria-hidden="true">
                 <div class="modal-dialog">
@@ -437,6 +612,77 @@ if ($usuario_tipo === 'admin') {
                                         <label for="edit_duracao" class="form-label small fw-semibold text-light">Duração (minutos) *</label>
                                         <input type="number" class="form-control bg-dark text-white border-secondary" id="edit_duracao" name="duracao_minutos" step="5" required>
                                     </div>
+                                </div>
+                            </div>
+                            <footer class="modal-footer border-secondary">
+                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-warning btn-sm fw-bold">Salvar Alterações</button>
+                            </footer>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Edição de Agendamento -->
+            <div class="modal fade" id="modalEditaAgendamento" tabindex="-1" aria-labelledby="modalEditaAgendamentoLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content bg-dark text-white border-secondary">
+                        <form action="../actions/atualiza_agendamento.php" method="POST">
+                            <input type="hidden" id="edit_ag_id" name="id">
+                            <header class="modal-header border-secondary">
+                                <h2 class="modal-title fs-5 fw-bold" id="modalEditaAgendamentoLabel">
+                                    <i class="bi bi-calendar-event text-warning me-2"></i>Editar Agendamento
+                                </h2>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </header>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="edit_ag_servico" class="form-label small fw-semibold text-light">Serviço *</label>
+                                    <select class="form-select bg-dark text-white border-secondary" id="edit_ag_servico" name="servico_id" required>
+                                        <?php foreach ($servicos as $srv): ?>
+                                            <option value="<?= $srv['id']; ?>"><?= htmlspecialchars($srv['nome']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_ag_barbeiro" class="form-label small fw-semibold text-light">Barbeiro *</label>
+                                    <select class="form-select bg-dark text-white border-secondary" id="edit_ag_barbeiro" name="barbeiro_id" required>
+                                        <?php foreach ($barbeiros as $brb): ?>
+                                            <option value="<?= $brb['id']; ?>"><?= htmlspecialchars($brb['nome']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6 mb-3">
+                                        <label for="edit_ag_data" class="form-label small fw-semibold text-light">Data *</label>
+                                        <input type="date" class="form-control bg-dark text-white border-secondary" id="edit_ag_data" name="data_agendamento" required>
+                                    </div>
+                                    <div class="col-6 mb-3">
+                                        <label for="edit_ag_horario" class="form-label small fw-semibold text-light">Horário *</label>
+                                        <select class="form-select bg-dark text-white border-secondary" id="edit_ag_horario" name="horario" required>
+                                            <option value="09:00:00">09:00</option>
+                                            <option value="10:00:00">10:00</option>
+                                            <option value="11:00:00">11:00</option>
+                                            <option value="13:00:00">13:00</option>
+                                            <option value="14:00:00">14:00</option>
+                                            <option value="15:00:00">15:00</option>
+                                            <option value="16:00:00">16:00</option>
+                                            <option value="17:00:00">17:00</option>
+                                            <option value="18:00:00">18:00</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_ag_status" class="form-label small fw-semibold text-light">Status *</label>
+                                    <select class="form-select bg-dark text-white border-secondary" id="edit_ag_status" name="status" required>
+                                        <option value="pendente">Pendente</option>
+                                        <option value="concluido">Concluído</option>
+                                        <option value="cancelado">Cancelado</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_ag_observacoes" class="form-label small fw-semibold text-light">Observações</label>
+                                    <textarea class="form-control bg-dark text-white border-secondary" id="edit_ag_observacoes" name="observacoes" rows="2"></textarea>
                                 </div>
                             </div>
                             <footer class="modal-footer border-secondary">
